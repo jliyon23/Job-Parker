@@ -6,6 +6,7 @@ interface PaginationQuery {
   page?: string;
   limit?: string;
   search?: string;
+  techpark?: string; // added
 }
 
 interface PaginatedResponse<T> {
@@ -25,6 +26,7 @@ export const getAllJobs = async (req: Request<{}, {}, {}, PaginationQuery>, res:
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "10");
     const search = req.query.search || "";
+    const techpark = req.query.techpark || "";
 
     // Validate pagination parameters
     const validPage = Math.max(1, page);
@@ -32,7 +34,7 @@ export const getAllJobs = async (req: Request<{}, {}, {}, PaginationQuery>, res:
     const skip = (validPage - 1) * validLimit;
 
     // Build search query
-    const searchQuery = search
+    const searchQuery: any = search
       ? {
           $or: [
             { company_name: { $regex: search, $options: "i" } },
@@ -42,6 +44,7 @@ export const getAllJobs = async (req: Request<{}, {}, {}, PaginationQuery>, res:
           ]
         }
       : {};
+    if (techpark) searchQuery.techpark_name = techpark; // apply techpark filter
 
     console.log(`Fetching jobs - Page: ${validPage}, Limit: ${validLimit}, Search: "${search}"`);
 
@@ -80,14 +83,16 @@ export const getFreshers = async (req: Request<{}, {}, {}, PaginationQuery>, res
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "10");
     const search = req.query.search || "";
+    const techpark = req.query.techpark || "";
 
     const validPage = Math.max(1, page);
     const validLimit = Math.min(Math.max(1, limit), 100);
     const skip = (validPage - 1) * validLimit;
 
-    // Build search query for freshers only
-    const searchQuery = {
-      is_fresher: true,
+    const base: any = { is_fresher: true };
+    if (techpark) base.techpark_name = techpark;
+    const searchQuery: any = {
+      ...base,
       ...(search && {
         $or: [
           { company_name: { $regex: search, $options: "i" } },

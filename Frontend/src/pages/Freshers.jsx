@@ -1,77 +1,72 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { FiMapPin, FiCalendar, FiClock, FiBriefcase, FiExternalLink, FiLoader, FiStar, FiSearch, FiFilter, FiArrowUp, FiArrowDown } from "react-icons/fi";
+import { FiStar, FiSearch, FiLoader } from "react-icons/fi";
+import JobCard from "../components/JobCard";
+import Pagination from "../components/Pagination";
 
 const Freshers = () => {
   const [jobs, setJobs] = useState([]);
-  const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [selectedTechpark, setSelectedTechpark] = useState("");
-  const [sortOrder, setSortOrder] = useState("desc"); // desc = newest first
   const [techparks, setTechparks] = useState([]);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 12
+  });
 
   useEffect(() => {
-    const fetchFreshers = async () => {
-      try {
-        // ✅ Fetch fresher jobs only
-        const response = await axios.get("https://job-parker-api.vercel.app/api/jobs/freshers");
-        setJobs(response.data);
-        setFilteredJobs(response.data);
-        
-        // Extract unique techparks for filter
-        const uniqueTechparks = [...new Set(response.data.map(job => job.techpark_name).filter(Boolean))];
-        setTechparks(uniqueTechparks);
-      } catch (error) {
-        console.error("❌ Error fetching fresher jobs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchFreshers();
-  }, []);
+  }, [pagination.currentPage, searchTerm, selectedTechpark]);
 
-  // Filter and search functionality
-  useEffect(() => {
-    let filtered = jobs;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(job =>
-        job.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Techpark filter
-    if (selectedTechpark) {
-      filtered = filtered.filter(job => job.techpark_name === selectedTechpark);
-    }
-
-    // Sort by last date
-    filtered = [...filtered].sort((a, b) => {
-      if (!a.last_date && !b.last_date) return 0;
-      if (!a.last_date) return 1;
-      if (!b.last_date) return -1;
+  const fetchFreshers = async () => {
+    try {
+      setLoading(true);
+      const params = {
+        page: pagination.currentPage,
+        limit: pagination.itemsPerPage,
+        ...(searchTerm && { search: searchTerm }),
+      };
       
-      const dateA = new Date(a.last_date);
-      const dateB = new Date(b.last_date);
+      const response = await axios.get("https://job-parker-api.vercel.app/api/jobs/freshers", { params });
+      setJobs(response.data.data);
+      setPagination(response.data.pagination);
       
-      return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
-    });
+      // Extract unique techparks for filter
+      if (pagination.currentPage === 1) {
+        const uniqueTechparks = [...new Set(response.data.data.map(job => job.techpark_name).filter(Boolean))];
+        setTechparks(uniqueTechparks);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching fresher jobs:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setFilteredJobs(filtered);
-  }, [jobs, searchTerm, selectedTechpark, sortOrder]);
+  const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-  const handleSortToggle = () => {
-    setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+  const handleSearch = (value) => {
+    setSearchTerm(value);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleTechparkFilter = (techpark) => {
+    setSelectedTechpark(techpark);
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
   const clearFilters = () => {
     setSearchTerm("");
+    setSearchInput("");
     setSelectedTechpark("");
-    setSortOrder("desc");
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
   if (loading) return (
@@ -96,7 +91,7 @@ const Freshers = () => {
               </h1>
             </div>
             <div className="text-sm text-gray-500">
-              {filteredJobs.length} of {jobs.length} jobs
+              Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1}-{Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of {pagination.totalItems} jobs
             </div>
           </div>
           <p className="text-gray-600 text-base lg:text-lg">
@@ -112,10 +107,16 @@ const Freshers = () => {
             <input
               type="text"
               placeholder="Search by role or company..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-10 pr-24 py-3 border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
             />
+            <button
+              onClick={() => handleSearch(searchInput)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 text-sm"
+            >
+              Search
+            </button>
           </div>
 
           {/* Filters Row */}
@@ -124,7 +125,7 @@ const Freshers = () => {
             <div className="flex-1">
               <select
                 value={selectedTechpark}
-                onChange={(e) => setSelectedTechpark(e.target.value)}
+                onChange={(e) => handleTechparkFilter(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm bg-white"
               >
                 <option value="">All Locations</option>
@@ -136,41 +137,26 @@ const Freshers = () => {
               </select>
             </div>
 
-            {/* Sort Button */}
+            {/* Clear Filters Button */}
             <button
-              onClick={handleSortToggle}
+              onClick={clearFilters}
               className="flex items-center justify-center px-4 py-3 border border-gray-300 bg-white hover:bg-gray-50 transition-colors duration-200 text-sm font-medium"
+              disabled={!searchTerm && !selectedTechpark}
             >
-              <FiClock className="mr-2" />
-              <span className="hidden sm:inline">Sort by Date</span>
-              {sortOrder === "desc" ? (
-                <FiArrowDown className="ml-2" />
-              ) : (
-                <FiArrowUp className="ml-2" />
-              )}
+              Clear Filters
             </button>
-
-            {/* Clear Filters */}
-            {(searchTerm || selectedTechpark) && (
-              <button
-                onClick={clearFilters}
-                className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium transition-colors duration-200"
-              >
-                Clear
-              </button>
-            )}
           </div>
         </div>
 
-        {filteredJobs.length === 0 ? (
+        {jobs.length === 0 ? (
           <div className="text-center py-12">
             <div className="bg-white border border-gray-200 max-w-md mx-auto p-6 sm:p-8">
               <FiStar className="text-4xl text-gray-400 mx-auto mb-4" />
               <h2 className="text-lg sm:text-xl font-semibold text-gray-700 mb-2">
-                {jobs.length === 0 ? "No fresher jobs found" : "No jobs match your filters"}
+                {pagination.totalItems === 0 ? "No fresher jobs found" : "No jobs match your filters"}
               </h2>
               <p className="text-gray-500 text-sm">
-                {jobs.length === 0 
+                {pagination.totalItems === 0 
                   ? "New opportunities will be posted soon"
                   : "Try adjusting your search or filters"
                 }
@@ -178,75 +164,18 @@ const Freshers = () => {
             </div>
           </div>
         ) : (
-          <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredJobs.map((job) => (
-              <div
-                key={job._id}
-                className="bg-white border border-gray-200 hover:border-green-300 transition-all duration-200 hover:shadow-lg"
-              >
-                {/* Card Header with Badge */}
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1">
-                      FRESHER FRIENDLY
-                    </span>
-                    {job.last_date && (
-                      <div className="flex items-center text-xs text-red-600 bg-red-50 px-2 py-1 border border-red-200">
-                        <FiClock className="mr-1" />
-                        <span className="font-medium">
-                          Deadline: {new Date(job.last_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Company Logo */}
-                  {job.logo && (
-                    <div className="mb-4 flex justify-center">
-                      <img
-                        src={job.logo}
-                        alt={`${job.company_name} Logo`}
-                        className="h-12 sm:h-16 object-contain"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Job Title */}
-                  <div className="mb-4">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight">
-                      {job.role}
-                    </h2>
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <FiBriefcase className="mr-2 text-sm shrink-0" />
-                      <span className="font-medium truncate text-sm">
-                        {job.company_name || "N/A"}
-                      </span>
-                    </div>
-                    {job.techpark_name && (
-                      <div className="flex items-center text-gray-600">
-                        <FiMapPin className="mr-2 text-sm shrink-0" />
-                        <span className="text-sm truncate">{job.techpark_name}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Apply Button */}
-                  <a
-                    href={job.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center w-full bg-green-600 text-white px-4 py-3 font-medium hover:bg-green-700 transition-colors duration-200 text-sm"
-                  >
-                    <span>Apply Now</span>
-                    <FiExternalLink className="ml-2 text-sm" />
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {jobs.map((job) => (
+                <JobCard key={job._id} job={job} accent="green" alwaysShowFresherBadge />
+              ))}
+            </div>
+            <Pagination
+              pagination={pagination}
+              onPageChange={(p) => handlePageChange(p)}
+              color="green"
+            />
+          </>
         )}
       </div>
     </div>
