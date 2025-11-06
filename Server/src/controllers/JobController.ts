@@ -1,22 +1,127 @@
 import type { Request, Response } from "express";
 import Job from "../models/Job.js";
 
-export const getAllJobs = async (req: Request, res: Response): Promise<void> => {
+// Pagination interface for better type safety
+interface PaginationQuery {
+  page?: string;
+  limit?: string;
+  search?: string;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+}
+
+export const getAllJobs = async (req: Request<{}, {}, {}, PaginationQuery>, res: Response): Promise<void> => {
   try {
-    console.log("Fetching all jobs");
-    const jobs = await Job.find().sort({ scraped_at: -1 });
-    console.log(`Fetched ${jobs.length} jobs`);
-    res.json(jobs);
+    const page = parseInt(req.query.page || "1");
+    const limit = parseInt(req.query.limit || "10");
+    const search = req.query.search || "";
+
+    // Validate pagination parameters
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(Math.max(1, limit), 100); // Max 100 items per page
+    const skip = (validPage - 1) * validLimit;
+
+    // Build search query
+    const searchQuery = search
+      ? {
+          $or: [
+            { company_name: { $regex: search, $options: "i" } },
+            { role: { $regex: search, $options: "i" } },
+            { job_type: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } }
+          ]
+        }
+      : {};
+
+    console.log(`Fetching jobs - Page: ${validPage}, Limit: ${validLimit}, Search: "${search}"`);
+
+    // Get total count for pagination
+    const totalItems = await Job.countDocuments(searchQuery);
+    const totalPages = Math.ceil(totalItems / validLimit);
+
+    // Fetch paginated jobs
+    const jobs = await Job.find(searchQuery)
+      .sort({ scraped_at: -1 })
+      .skip(skip)
+      .limit(validLimit);
+
+    const response: PaginatedResponse<typeof jobs[0]> = {
+      data: jobs,
+      pagination: {
+        currentPage: validPage,
+        totalPages,
+        totalItems,
+        itemsPerPage: validLimit,
+        hasNextPage: validPage < totalPages,
+        hasPrevPage: validPage > 1
+      }
+    };
+
+    console.log(`Fetched ${jobs.length} jobs out of ${totalItems} total`);
+    res.json(response);
   } catch (error: unknown) {
     console.error("getAllJobs error", error);
     res.status(500).json({ error: "Error fetching jobs" });
   }
 };
 
-export const getFreshers = async (req: Request, res: Response): Promise<void> => {
+export const getFreshers = async (req: Request<{}, {}, {}, PaginationQuery>, res: Response): Promise<void> => {
   try {
-    const jobs = await Job.find({ is_fresher: true }).sort({ scraped_at: -1 });
-    res.json(jobs);
+    const page = parseInt(req.query.page || "1");
+    const limit = parseInt(req.query.limit || "10");
+    const search = req.query.search || "";
+
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(Math.max(1, limit), 100);
+    const skip = (validPage - 1) * validLimit;
+
+    // Build search query for freshers only
+    const searchQuery = {
+      is_fresher: true,
+      ...(search && {
+        $or: [
+          { company_name: { $regex: search, $options: "i" } },
+          { role: { $regex: search, $options: "i" } },
+          { job_type: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } }
+        ]
+      })
+    };
+
+    console.log(`Fetching fresher jobs - Page: ${validPage}, Limit: ${validLimit}, Search: "${search}"`);
+
+    const totalItems = await Job.countDocuments(searchQuery);
+    const totalPages = Math.ceil(totalItems / validLimit);
+
+    const jobs = await Job.find(searchQuery)
+      .sort({ scraped_at: -1 })
+      .skip(skip)
+      .limit(validLimit);
+
+    const response: PaginatedResponse<typeof jobs[0]> = {
+      data: jobs,
+      pagination: {
+        currentPage: validPage,
+        totalPages,
+        totalItems,
+        itemsPerPage: validLimit,
+        hasNextPage: validPage < totalPages,
+        hasPrevPage: validPage > 1
+      }
+    };
+
+    console.log(`Fetched ${jobs.length} fresher jobs out of ${totalItems} total`);
+    res.json(response);
   } catch (error: unknown) {
     console.error("getFreshers error", error);
     res.status(500).json({ error: "Error fetching fresher jobs" });

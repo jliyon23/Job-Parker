@@ -15,7 +15,7 @@ const Home = () => {
     const fetchJobs = async () => {
       try {
         // ✅ use await
-        const response = await axios.get("http://localhost:4000/api/jobs");
+        const response = await axios.get("https://job-parker-api.vercel.app/api/jobs");
         setJobs(response.data);
         setFilteredJobs(response.data);
         

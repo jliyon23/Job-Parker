@@ -15,7 +15,7 @@ const Freshers = () => {
     const fetchFreshers = async () => {
       try {
         // ✅ Fetch fresher jobs only
-        const response = await axios.get("http://localhost:4000/api/jobs/freshers");
+        const response = await axios.get("https://job-parker-api.vercel.app/api/jobs/freshers");
         setJobs(response.data);
         setFilteredJobs(response.data);
         
