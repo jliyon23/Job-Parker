@@ -16,4 +16,11 @@ app.get("/", (_, res) => res.send("✅ Job API is running..."));
 app.use("/api/jobs", jobRoutes);
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+// Export the Express app for Vercel
+export default app;
+
+// Only start the server if not in Vercel environment
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+}
