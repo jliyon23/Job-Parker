@@ -120,8 +120,8 @@ const Home = () => {
           </div>
 
           {/* Filters Row */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Techpark Filter */}
+          {/* <div className="flex flex-col sm:flex-row gap-4">
+           
             <div className="flex-1">
               <select
                 value={selectedTechpark}
@@ -150,7 +150,7 @@ const Home = () => {
             >
               Clear Filters
             </button>
-          </div>
+          </div> */}
         </div>
 
         {jobs.length === 0 ? (

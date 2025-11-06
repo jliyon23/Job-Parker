@@ -120,8 +120,7 @@ const Freshers = () => {
           </div>
 
           {/* Filters Row */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Techpark Filter */}
+          {/* <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <select
                 value={selectedTechpark}
@@ -137,7 +136,6 @@ const Freshers = () => {
               </select>
             </div>
 
-            {/* Clear Filters Button */}
             <button
               onClick={clearFilters}
               className="flex items-center justify-center px-4 py-3 border border-gray-300 bg-white hover:bg-gray-50 transition-colors duration-200 text-sm font-medium"
@@ -145,7 +143,7 @@ const Freshers = () => {
             >
               Clear Filters
             </button>
-          </div>
+          </div> */}
         </div>
 
         {jobs.length === 0 ? (

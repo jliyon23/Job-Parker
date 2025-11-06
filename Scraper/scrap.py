@@ -5,6 +5,7 @@ import urllib3
 import json
 import os
 from pymongo import MongoClient
+import re
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -14,14 +15,49 @@ def parse_date_safe(date_str):
     except Exception:
         return None
 
-def check_is_fresher(text):
-    """Detect if the job is for freshers"""
-    text = text.lower()
-    fresher_keywords = [
-        "fresher", "freshers", "entry level", "graduate trainee",
-        "intern", "internship", "trainee", "0-1 year", "0 to 1 year"
+
+
+def check_is_fresher(text: str) -> bool:
+    """Smart fresher/intern/trainee detection with negative filtering"""
+    text = text.lower().strip()
+
+    # 🟩 Positive Indicators
+    positive_patterns = [
+        r"\bfresher(s)?\b",
+        r"\btrainee(s)?\b",
+        r"\bintern(ship)?\b",
+        r"\bjunior\b",
+        r"\bjr\b",
+        r"\bentry[\s\-]?level\b",
+        r"\bgraduate(s)?\b",
+        r"\bbeginner(s)?\b",
+        r"\bnovice\b",
+        r"\bapprentice(s)?\b",
+        r"\brookie\b",
+        r"\bstarter\b",
+        r"\bl[\s\-]?1\b",
+        r"\b6[\s\-]?month(s)?\b",
+        r"\b0[\s\-]?(to|–|—|or)?[\s\-]?(1|2|3)\b",
+        r"\b0\s*[\-–—]\s*\d+\s*(year|yr)?s?\b"
     ]
-    return any(word in text for word in fresher_keywords)
+
+    # 🟥 Negative Indicators (context that cancels out fresher tags)
+    negative_patterns = [
+        r"\bnot\s+(for|open\s+to)\s+fresher(s)?\b",
+        r"\bno\s+fresher(s)?\b",
+        r"\bexperience\s+(required|must|needed|mandatory)\b",
+        r"\b(minimum|at\s*least)\s*\d+\s*(year|yr)s?\b",
+        r"\b\d+\+\s*(year|yr)s?\b",
+        r"\bexperienced\b",
+        r"\bprior\s+experience\b",
+        r"\bprofessional\s+experience\b"
+    ]
+
+    # Check matches
+    positive = any(re.search(pat, text) for pat in positive_patterns)
+    negative = any(re.search(pat, text) for pat in negative_patterns)
+
+    return bool(positive and not negative)
 
 
 def scrape_job_description(url, source):
