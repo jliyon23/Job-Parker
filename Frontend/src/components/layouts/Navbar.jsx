@@ -14,7 +14,7 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center space-x-2">
             <FiBriefcase className="text-2xl text-blue-600" />
-            <span className="font-bold text-xl tracking-wide">Job Hunter</span>
+            <span className="font-bold text-xl tracking-wide">JobParker</span>
           </div>
 
           {/* Desktop Links */}

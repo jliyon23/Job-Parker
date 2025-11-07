@@ -4,6 +4,33 @@ import { FiStar, FiSearch, FiLoader } from "react-icons/fi";
 import JobCard from "../components/JobCard";
 import Pagination from "../components/Pagination";
 
+// Simple cache helpers for fresher list
+const FRESHERS_CACHE_KEY = 'jobs-freshers-cache-v1';
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
+
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(FRESHERS_CACHE_KEY)) || {}; } catch { return {}; }
+}
+function saveCache(cache) {
+  try { localStorage.setItem(FRESHERS_CACHE_KEY, JSON.stringify(cache)); } catch { /* ignore */ }
+}
+function buildKey({ page, limit, search }) {
+  return JSON.stringify({ page, limit, search: search || '', scope: 'freshers' });
+}
+function getCached(params) {
+  const cache = loadCache();
+  const key = buildKey(params);
+  const entry = cache[key];
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) return null;
+  return entry;
+}
+function setCached(params, data) {
+  const cache = loadCache();
+  cache[buildKey(params)] = { ts: Date.now(), data };
+  saveCache(cache);
+}
+
 const Freshers = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,25 +47,47 @@ const Freshers = () => {
 
   useEffect(() => {
     fetchFreshers();
-  }, [pagination.currentPage, searchTerm, selectedTechpark]);
+  }, [pagination.currentPage, searchTerm]);
 
   const fetchFreshers = async () => {
+    const params = {
+      page: pagination.currentPage,
+      limit: pagination.itemsPerPage,
+      ...(searchTerm && { search: searchTerm }),
+    };
+
+    // Cache first
+    const cached = getCached({
+      page: params.page,
+      limit: params.limit,
+      search: params.search,
+    });
+    if (cached) {
+      setJobs(cached.data.items);
+      setPagination(cached.data.pagination);
+      setLoading(false);
+      revalidate(params, cached.data.hash);
+      return;
+    }
+
+    await revalidate(params);
+  };
+
+  const revalidate = async (params, previousHash = null) => {
     try {
-      setLoading(true);
-      const params = {
-        page: pagination.currentPage,
-        limit: pagination.itemsPerPage,
-        ...(searchTerm && { search: searchTerm }),
-      };
-      
+      setLoading(!previousHash);
       const response = await axios.get("https://job-parker-api.vercel.app/api/jobs/freshers", { params });
-      setJobs(response.data.data);
-      setPagination(response.data.pagination);
-      
-      // Extract unique techparks for filter
-      if (pagination.currentPage === 1) {
-        const uniqueTechparks = [...new Set(response.data.data.map(job => job.techpark_name).filter(Boolean))];
-        setTechparks(uniqueTechparks);
+      const items = response.data.data;
+      const paginationData = response.data.pagination;
+      const hash = JSON.stringify({ len: items.length, first: items[0]?._id, total: paginationData.totalItems });
+      if (hash !== previousHash) {
+        setJobs(items);
+        setPagination(paginationData);
+        setCached({ page: params.page, limit: params.limit, search: params.search }, { items, pagination: paginationData, hash });
+      }
+      if (params.page === 1) {
+        const uniqueTechparks = [...new Set(items.map(job => job.techpark_name).filter(Boolean))];
+        if (uniqueTechparks.length) setTechparks(uniqueTechparks);
       }
     } catch (error) {
       console.error("❌ Error fetching fresher jobs:", error);
