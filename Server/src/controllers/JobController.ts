@@ -135,7 +135,7 @@ export const getFreshers = async (req: Request<{}, {}, {}, PaginationQuery>, res
 
 export const getJobById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const job = await Job.findOne({ job_id: req.params.id });
+    const job = await Job.findById(req.params.id);
     if (!job) {
       res.status(404).json({ error: "Job not found" });
       return;
