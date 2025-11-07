@@ -203,9 +203,7 @@ export const matchResumeText = async (req: Request, res: Response): Promise<void
     });
 
     scored.sort((a, b) => b.score - a.score);
-    const top = scored.slice(0, 10);
-
-    res.json({ matches: top, totalConsidered: jobs.length });
+    res.json({ matches: scored, totalConsidered: jobs.length });
   } catch (error) {
     console.error("matchResumeText error", error);
     res.status(500).json({ error: "Error matching resume" });
