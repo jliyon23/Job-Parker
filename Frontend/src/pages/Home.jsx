@@ -4,6 +4,33 @@ import { FiLoader, FiSearch, FiMapPin } from "react-icons/fi";
 import JobCard from "../components/JobCard";
 import Pagination from "../components/Pagination";
 
+// Simple cache helpers
+const HOME_CACHE_KEY = 'jobs-cache-v1';
+const CACHE_TTL_MS = 1000 * 60 * 5; // 5 minutes
+
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(HOME_CACHE_KEY)) || {}; } catch { return {}; }
+}
+function saveCache(cache) {
+  try { localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(cache)); } catch { /* ignore */ }
+}
+function buildKey({ page, limit, search, techpark }) {
+  return JSON.stringify({ page, limit, search: search || '', techpark: techpark || '', scope: 'all' });
+}
+function getCached(params) {
+  const cache = loadCache();
+  const key = buildKey(params);
+  const entry = cache[key];
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL_MS) return null;
+  return entry;
+}
+function setCached(params, data) {
+  const cache = loadCache();
+  cache[buildKey(params)] = { ts: Date.now(), data };
+  saveCache(cache);
+}
+
 const Home = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,23 +50,54 @@ const Home = () => {
   }, [pagination.currentPage, searchTerm, selectedTechpark]);
 
   const fetchJobs = async () => {
+    const params = {
+      page: pagination.currentPage,
+      limit: pagination.itemsPerPage,
+      ...(searchTerm && { search: searchTerm }),
+      ...(selectedTechpark && { techpark: selectedTechpark })
+    };
+
+    // Try cache first (stale-while-revalidate)
+    const cached = getCached({
+      page: params.page,
+      limit: params.limit,
+      search: params.search,
+      techpark: params.techpark
+    });
+    if (cached) {
+      setJobs(cached.data.items);
+      setPagination(cached.data.pagination);
+      setLoading(false);
+      // Still revalidate in background
+      revalidate(params, cached.data.hash);
+      return;
+    }
+
+    // No cache -> normal fetch
+    await revalidate(params);
+  };
+
+  const revalidate = async (params, previousHash = null) => {
     try {
-      setLoading(true);
-      const params = {
-        page: pagination.currentPage,
-        limit: pagination.itemsPerPage,
-        ...(searchTerm && { search: searchTerm }),
-        ...(selectedTechpark && { techpark: selectedTechpark }) // send techpark to backend
-      };
-      
+      setLoading(!previousHash); // only show spinner if nothing rendered yet
       const response = await axios.get("https://job-parker-api.vercel.app/api/jobs", { params });
-      setJobs(response.data.data);
-      setPagination(response.data.pagination);
-      
-      // Extract unique techparks for filter
-      if (pagination.currentPage === 1) {
-        const uniqueTechparks = [...new Set(response.data.data.map(job => job.techpark_name).filter(Boolean))];
-        setTechparks(uniqueTechparks);
+      const items = response.data.data;
+      const paginationData = response.data.pagination;
+      const hash = JSON.stringify({ len: items.length, first: items[0]?._id, total: paginationData.totalItems });
+      if (hash !== previousHash) {
+        setJobs(items);
+        setPagination(paginationData);
+        setCached({
+          page: params.page,
+            limit: params.limit,
+            search: params.search,
+            techpark: params.techpark
+        }, { items, pagination: paginationData, hash });
+      }
+      // Extract unique techparks only when on first page & no search filter (to keep list consistent)
+      if (params.page === 1) {
+        const uniqueTechparks = [...new Set(items.map(job => job.techpark_name).filter(Boolean))];
+        if (uniqueTechparks.length) setTechparks(uniqueTechparks);
       }
     } catch (error) {
       console.error("❌ Error fetching jobs:", error);

@@ -1,20 +1,24 @@
 import React from "react";
-import { FiClock, FiBriefcase, FiExternalLink, FiMapPin } from "react-icons/fi";
+import { FiClock, FiBriefcase, FiExternalLink, FiMapPin, FiInfo } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 const JobCard = ({ job, accent = "blue", alwaysShowFresherBadge = false }) => {
   const accentMap = {
     blue: {
       apply: "bg-blue-600 hover:bg-blue-700",
       fresherBg: "bg-green-100 text-green-800",
-      borderHover: "hover:border-blue-300"
+      borderHover: "hover:border-blue-300",
+      viewMore: "border-blue-600 text-blue-600 hover:bg-blue-50"
     },
     green: {
       apply: "bg-green-600 hover:bg-green-700",
       fresherBg: "bg-green-100 text-green-800",
-      borderHover: "hover:border-green-300"
+      borderHover: "hover:border-green-300",
+      viewMore: "border-green-600 text-green-600 hover:bg-green-50"
     }
   };
   const ui = accentMap[accent] || accentMap.blue;
+  const jobIdentifier = job?._id; // backend uses job_id in getJobById
 
   return (
     <div className={`bg-white border border-gray-200 ${ui.borderHover} transition-all duration-200 hover:shadow-lg`}>
@@ -49,7 +53,7 @@ const JobCard = ({ job, accent = "blue", alwaysShowFresherBadge = false }) => {
           )}
         </div>
 
-        {/* Deadline at bottom (above Apply button) */}
+        {/* Deadline at bottom (above buttons) */}
         {job.last_date && (
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center text-xs text-red-600  px-2 py-1 ">
@@ -59,15 +63,27 @@ const JobCard = ({ job, accent = "blue", alwaysShowFresherBadge = false }) => {
           </div>
         )}
 
-        <a
-          href={job.link}
-          target="_blank"
+        <div className="flex flex-col space-y-3">
+          <a
+            href={job.link}
+            target="_blank"
             rel="noopener noreferrer"
-          className={`inline-flex items-center justify-center w-full ${ui.apply} text-white px-4 py-3 font-medium transition-colors duration-200 text-sm`}
-        >
-          <span>Apply Now</span>
-          <FiExternalLink className="ml-2 text-sm" />
-        </a>
+            className={`inline-flex items-center justify-center w-full ${ui.apply} text-white px-4 py-3 font-medium transition-colors duration-200 text-sm`}
+          >
+            <span>Apply Now</span>
+            <FiExternalLink className="ml-2 text-sm" />
+          </a>
+          {jobIdentifier && (
+            <Link
+              to={`/jobs/${jobIdentifier}`}
+              state={{ job }}
+              className={`inline-flex items-center justify-center w-full border ${ui.viewMore} px-4 py-3 font-medium transition-colors duration-200 text-sm`}
+            >
+              <span>View More</span>
+              <FiInfo className="ml-2 text-sm" />
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
