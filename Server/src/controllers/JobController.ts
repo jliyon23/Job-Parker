@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import Job from "../models/Job.js";
+import natural from "natural";
 
 // Pagination interface for better type safety
 interface PaginationQuery {
@@ -135,7 +136,16 @@ export const getFreshers = async (req: Request<{}, {}, {}, PaginationQuery>, res
 
 export const getJobById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const job = await Job.findById(req.params.id);
+    const { id } = req.params as { id: string };
+    let job = null;
+    try {
+      job = await Job.findById(id);
+    } catch (_) {
+      // ignore cast errors
+    }
+    if (!job) {
+      job = await Job.findOne({ job_id: id });
+    }
     if (!job) {
       res.status(404).json({ error: "Job not found" });
       return;
@@ -144,5 +154,60 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
   } catch (error: unknown) {
     console.error("getJobById error", error);
     res.status(500).json({ error: "Error fetching job" });
+  }
+};
+
+export const matchResumeText = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { text } = req.body as { text?: string };
+    if (!text || text.trim().length < 50) {
+      res.status(400).json({ error: "Resume text too short or missing" });
+      return;
+    }
+
+    type JobLean = {
+      _id: string;
+      role?: string;
+      company_name?: string;
+      description?: string;
+      link?: string;
+      last_date?: string;
+      techpark_name?: string;
+      is_fresher?: boolean;
+      logo?: string;
+      job_id?: string;
+    };
+
+    const jobs = (await Job.find({}, {
+      description: 1, role: 1, company_name: 1, link: 1, last_date: 1, techpark_name: 1, is_fresher: 1, logo: 1, job_id: 1
+    }).lean()) as unknown as JobLean[];
+
+    const tokenizer: any = new (natural as any).WordTokenizer();
+    const resumeTokens: string[] = tokenizer.tokenize(text.toLowerCase());
+    const resumeFreq: Record<string, number> = {};
+    resumeTokens.forEach((t: string) => { resumeFreq[t] = (resumeFreq[t] || 0) + 1; });
+    const resumeMagnitude = Math.sqrt(Object.values(resumeFreq).reduce((sum, v) => sum + v * v, 0));
+
+    const scored: Array<JobLean & { score: number }> = jobs.map((job: JobLean) => {
+      const jobText = `${job.role || ''} ${job.company_name || ''} ${job.description || ''}`.toLowerCase();
+      const jobTokens: string[] = tokenizer.tokenize(jobText);
+      const jobFreq: Record<string, number> = {};
+      jobTokens.forEach((t: string) => { jobFreq[t] = (jobFreq[t] || 0) + 1; });
+      const intersection = Object.keys(resumeFreq).filter(k => jobFreq[k]);
+      const dot = intersection.reduce((sum, k) => sum + resumeFreq[k] * jobFreq[k], 0);
+      const jobMagnitude = Math.sqrt(Object.values(jobFreq).reduce((sum, v) => sum + v * v, 0));
+      const cosine = jobMagnitude === 0 || resumeMagnitude === 0 ? 0 : dot / (resumeMagnitude * jobMagnitude);
+      const jw = (natural as any).JaroWinklerDistance(text.slice(0, 4000), jobText.slice(0, 4000));
+      const score = (cosine * 0.7) + (jw * 0.3);
+      return { ...job, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.slice(0, 10);
+
+    res.json({ matches: top, totalConsidered: jobs.length });
+  } catch (error) {
+    console.error("matchResumeText error", error);
+    res.status(500).json({ error: "Error matching resume" });
   }
 };
