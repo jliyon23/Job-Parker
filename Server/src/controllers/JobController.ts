@@ -53,9 +53,9 @@ export const getAllJobs = async (req: Request<{}, {}, {}, PaginationQuery>, res:
     const totalItems = await Job.countDocuments(searchQuery);
     const totalPages = Math.ceil(totalItems / validLimit);
 
-    // Fetch paginated jobs
+    // Fetch paginated jobs (newest first)
     const jobs = await Job.find(searchQuery)
-      .sort({ scraped_at: -1 })
+      .sort({ scraped_at: -1, _id: -1 })
       .skip(skip)
       .limit(validLimit);
 
@@ -110,7 +110,7 @@ export const getFreshers = async (req: Request<{}, {}, {}, PaginationQuery>, res
     const totalPages = Math.ceil(totalItems / validLimit);
 
     const jobs = await Job.find(searchQuery)
-      .sort({ scraped_at: -1 })
+      .sort({ scraped_at: -1, _id: -1 })
       .skip(skip)
       .limit(validLimit);
 
@@ -180,7 +180,7 @@ export const matchResumeText = async (req: Request, res: Response): Promise<void
 
     const jobs = (await Job.find({}, {
       description: 1, role: 1, company_name: 1, link: 1, last_date: 1, techpark_name: 1, is_fresher: 1, logo: 1, job_id: 1
-    }).lean()) as unknown as JobLean[];
+    }).sort({ scraped_at: -1, _id: -1 }).lean()) as unknown as JobLean[];
 
     const tokenizer: any = new (natural as any).WordTokenizer();
     const resumeTokens: string[] = tokenizer.tokenize(text.toLowerCase());
