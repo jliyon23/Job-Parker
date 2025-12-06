@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 222 84% 21%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 98%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --radius: 0rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  }
+}
+
+@layer utilities {
+  .professional-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    transition: border-color 0.2s ease;
+  }
+  
+  .professional-card:hover {
+    border-color: #3b82f6;
+  }
+
+  .professional-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .professional-input {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    transition: border-color 0.2s ease;
+  }
+
+  .professional-input:focus {
+    border-color: #3b82f6;
+    outline: none;
+  }
+
+  .professional-button {
+    background: #0a2463;
+    color: #ffffff;
+    border: 1px solid #0a2463;
+    transition: all 0.2s ease;
+  }
+
+  .professional-button:hover {
+    background: #1e3a8a;
+  }
+
+  .professional-button-outline {
+    background: #ffffff;
+    color: #0a2463;
+    border: 1px solid #0a2463;
+    transition: all 0.2s ease;
+  }
+
+  .professional-button-outline:hover {
+    background: #0a2463;
+    color: #ffffff;
+  }
+
+  .professional-section {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+  }
+}
