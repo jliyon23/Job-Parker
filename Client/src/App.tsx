@@ -27,7 +27,7 @@ function App() {
                 <Briefcase className="w-5 h-5 text-[#0a2463]" />
               </div>
               <div>
-                <h1 className="text-xl font-semibold tracking-tight text-black">Job Parker</h1>
+                <h1 className="text-xl font-semibold tracking-tight text-black">JobPark</h1>
                 <p className="text-xs text-gray-600">Professional Job Search Platform</p>
               </div>
             </div>
